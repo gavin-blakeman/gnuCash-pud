@@ -1,0 +1,38 @@
+﻿gnuCash-price-upload
+================================================================
+Source code can be found on github.
+
+gnuCash-price-upload allows share (stock) prices to be uploaded from a .csv file to the gnuCash database. This is a Qt console
+application. The software will only work with database based storage of gnuCash information (not xml!)
+
+This has only been tested with mysql.
+
+The .csv file is expected to be in the format:
+date, open, high, low, close, adj close, volume
+
+date:       YYYY-MM-DD
+open:       double
+high:       double
+low:        double
+close:      double
+adj_close:  double
+volume:     std::uint64_t
+
+
+Command Line Usage
+------------------
+
+
+Documentation
+-------------
+The code is documented for use with doxygen.
+
+
+Licensing
+---------
+gnucash-price-upload    GPLv2 Copyright 2018 Gavin Blakeman.
+Boost 1.62              Boost License
+GCL                     GPLV2 Copyright 2013-2018 Gavin Blakeman.
+MCL                     GPLv2 Copyright 2013-2018 Gavin Blakeman.
+QCL                     GPLv2 Copyright 2013-2018 Gavin Blakeman.
+SCL                     GPLv2 Copyright 2013-2018 Gavin Blakeman.

@@ -1,0 +1,15 @@
+[submodule "SCL"]
+	path = SCL
+	url = gavin@gitserver:/srv/git/software/SCL.git
+[submodule "GCL"]
+	path = GCL
+	url = gavin@gitserver:/srv/git/software/GCL.git
+[submodule "MCL"]
+	path = MCL
+	url = gavin@gitserver:/srv/git/software/MCL.git
+[submodule "QCL"]
+	path = QCL
+	url = gavin@gitserver:/srv/git/software/QCL.git
+[submodule "qt-solutions"]
+	path = qt-solutions
+	url = https://github.com/qtproject/qt-solutions.git
