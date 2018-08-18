@@ -32,56 +32,60 @@
 
 #include "../include/service.h"
 
-  // Miscellaneous header files.
+  // Standard C++ library header files
 
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <vector>
+
+  // Miscellaneous library header files.
+
+#include <boost/algorithm/string.hpp>
+#include <boost/asio/ip/address_v4.hpp>
+#include <boost/chrono.hpp>
+#include "boost/filesystem.hpp"
 #include "boost/format.hpp"
+#include <boost/iostreams/tee.hpp>
+#include <boost/iostreams/stream.hpp>
+#include <boost/program_options.hpp>
+#include <boost/program_options/parsers.hpp>
+#include <boost/program_options/variables_map.hpp>
+#include <boost/tokenizer.hpp>
+#include <boost/token_functions.hpp>
 #include <GCL>
 #include <QCL>
+
+  // gnuCash-pud header files
+
 #include "include/database.h"
+#include "../include/settings.h"
+
+QSettings settings(ORG_NAME, APPL_NAME);
 
 namespace gnuCash_pud
 {
-  // Software version information
+    // Software version information
 
   std::uint16_t const MAJORVERSION	= 2018;           // Major version (year)
-  std::uint8_t const MINORVERSION	= 6;              // Minor version (month)
-  std::uint16_t const BUILDNUMBER = 0x0000;
+  std::uint16_t const MINORVERSION	= 9;              // Minor version (month)
+  std::uint16_t const BUILDNUMBER = 0x008E;
   std::string const BUILDDATE(__DATE__);
-
-  /// @brief Returns the copyright string.
-  /// @returns The copyright string.
-  /// @throws
-  /// @version 2018-06-28/GGB - Function created.
-
-  std::string getCopyrightString()
-  {
-    QFile file(":/text/copyright_licence.txt");
-
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
-    {
-      return std::string("");
-    }
-    else
-    {
-      QTextStream data(&file);
-      QString copyrightString = data.readAll();
-      return copyrightString.toStdString();
-    };
-  }
 
   /// @brief Function to return the release string.
   /// @returns The release string.
-  /// @throws
+  /// @throws std::bad_alloc
   /// @version 2018-06-28/GGB - Function created.
 
   std::string getReleaseString()
   {
-    return boost::str(boost::format("Version: %u-%02u.%04X") % MAJORVERSION % MINORVERSION % BUILDNUMBER);
+    return boost::str(boost::format("Version: %u.%02u.%04X") % MAJORVERSION % MINORVERSION % BUILDNUMBER);
   }
 
   /// @version Function to return the build date.
   /// @returns The build date.
-  /// @throws
+  /// @throws std::bad_alloc
   /// @version 2018-06-28/GGB - Function created.
 
   std::string getReleaseDate()
@@ -89,91 +93,192 @@ namespace gnuCash_pud
     return BUILDDATE;
   }
 
-  namespace service
+  /// @brief Constructor for the service.
+  /// @param[in] argc: The argc value from the command line call.
+  /// @param[in] argv: The argv value from the command line call.
+  /// @throws std::bad_alloc
+  /// @note 1. Ensure there are no usage of the defaultLogger() in this constructor.
+  /// @version 2018-06-28/GGB - Function created.
+
+  CService::CService(int argc, char **argv) : QtService<QCoreApplication>(argc, argv, "gnuCash-pud"), stateMachine(this)
   {
+    application()->setOrganizationName(ORG_NAME);
+    application()->setApplicationName(APPL_NAME);
 
-    /// @brief Constructor for the service.
-    /// @param[in] argc: The argc value from the command line call.
-    /// @param[in] argv: The argv value from the command line call.
-    /// @param[in] commodityListName: The name of the file containing the list of commodities to fetch.
-    /// @throws
-    /// @version 2018-06-28/GGB - Function created.
+    setServiceDescription("gnuCash - Price Upload Daemon");
+  }
 
-    CService::CService(int argc, char **argv, boost::filesystem::path const &commodityListName)
-      : QtService<QCoreApplication>(argc, argv, "gnuCash-pud"), stateMachine(nullptr), commodityListName_(commodityListName)
+  /// @brief Destructor for the class.
+  /// @throws None.
+  /// @version 2018-06-28/GGB - Function created.
+
+  CService::~CService()
+  {
+  }
+
+  /// @brief Function to resume the daemon
+  /// @throws
+  /// @version 2018-06-28/GGB - Function created.
+
+  void CService::resume()
+  {
+    INFOMESSAGE("Daemon restarted.");
+    stateMachine.start();
+  }
+
+  /// @brief This function is called when the service starts. The function is only called once.
+  /// @throws
+  /// @version 2018-06-28/GGB - Function created.
+
+  void CService::start()
+  {
+    std::ifstream ifs;
+    int returnValue = 0;
+    std::string dbDriver;
+    boost::filesystem::path logfilePath = "/home/gavin/";
+    boost::filesystem::path logfileName;
+
+    try
     {
-      TRACEENTER;
-      application()->setOrganizationName(VWL::settings::ORG_NAME);
-      application()->setApplicationName(VWL::settings::APPL_NAME);
+        // Try to open the configuration file.
 
-      setServiceDescription("gnuCash-pud");
-
-      TRACEEXIT;
-    }
-
-    /// @brief Destructor for the class.
-    /// @throws None.
-    /// @version 2018-06-28/GGB - Function created.
-
-    CService::~CService()
-    {
-      if (stateMachine)
+      ifs.open("/home/gavin/gnuCash-pud.conf");
+      if (!ifs)
       {
-        delete stateMachine;
-        stateMachine = nullptr;
-      }
-    }
+        CRITICALMESSAGE("Current Path: " + boost::filesystem::current_path().string());
+        CRITICALMESSAGE("Could not open configuration file. '/etc/gnuCash/gnuCash-pud.conf'");
+        QCoreApplication::exit(1);
+      };
 
-    /// @brief Function to resume the daemon
-    /// @throws
-    /// @version 2018-06-28/GGB - Function created.
+      boost::program_options::options_description configFile("Allowed Options");
+      configFile.add_options()
+          ("database.driver", boost::program_options::value<std::string>(&stateMachine.configurationData().databaseDriver))
+          ("database.ipaddress", boost::program_options::value<std::string>(&stateMachine.configurationData().databaseIPAddress))
+          ("database.port", boost::program_options::value<std::uint16_t>(&stateMachine.configurationData().databasePort))
+          ("database.schema", boost::program_options::value<std::string>(&stateMachine.configurationData().databaseSchema))
+          ("database.user", boost::program_options::value<std::string>(&stateMachine.configurationData().databaseUser))
+          ("database.password", boost::program_options::value<std::string>(&stateMachine.configurationData().databasePassword))
+          ("sharenames.pathname", boost::program_options::value<boost::filesystem::path>(&stateMachine.configurationData().shareNamesPath))
+          ("sharenames.filename", boost::program_options::value<boost::filesystem::path>(&stateMachine.configurationData().shareNamesFile))
+          ("logging.filename", boost::program_options::value<boost::filesystem::path>(&logfileName))
+          ("logging.path", boost::program_options::value<boost::filesystem::path>(&logfilePath))
+          ("logging.loglevel.trace", "")
+          ("logging.loglevel.debug", "")
+          ("logging.loglevel.info", "")
+          ("logging.loglevel.notice", "")
+          ("alphavantage.apikey", boost::program_options::value<std::string>(&stateMachine.configurationData().apiKey))
+          ;
 
-    void CService::resume()
-    {
-      INFOMESSAGE("Daemon restarted.");
-      stateMachine->start();
-    }
+      boost::program_options::variables_map vm;
+      boost::program_options::store(boost::program_options::parse_config_file(ifs, configFile), vm);
+      boost::program_options::notify(vm);
 
-    /// @brief This is the main part of the service. All the code for the service creation needs to go in here.
-    /// @throws
-    /// @version 2018-06-28/GGB - Function created.
+      ifs.close();		// Close the configuration file.
 
-    void CService::start()
-    {
-      TRACEENTER;
-      std::ostringstream os;
+              // Create the file logger.
+
+      GCL::logger::PLoggerSink fileLogger(new GCL::logger::CFileSink(logfilePath, logfileName));
+      std::dynamic_pointer_cast<GCL::logger::CFileSink>(fileLogger)->openLogFile();
+      GCL::logger::defaultLogger().addSink(fileLogger);
+
+        // First thing to do is to disable the streamLogger as it is not needed in a daemon. (Produces strange results)
+
+      GCL::logger::defaultLogger().removeDefaultStreamSink();
 
         /* Write some messages for the user. */
 
-      INFOMESSAGE("Application: WSd.");
+      INFOMESSAGE("Application: gnuCash-PUD.");
       INFOMESSAGE("Copyright: Gavin Blakeman 2018.");
       INFOMESSAGE("License: GPLv2.");
       INFOMESSAGE(getReleaseString());
       INFOMESSAGE("Release Date:" + getReleaseDate());
 
-        // Create the state machine
-
-      DEBUGMESSAGE("Creating state machine...");
-      stateMachine = new CStateMachine(this, );
-      DEBUGMESSAGE("State machine created.");
-
-        // Indicate that the service is starting.
+      fileLogger->trace(vm.count("logging.loglevel.trace"));
+      fileLogger->debug(vm.count("logging.loglevel.debug"));
+      fileLogger->info(vm.count("logging.loglevel.info"));
+      fileLogger->notice(vm.count("logging.loglevel.notice"));
 
       INFOMESSAGE("Daemon Started.");
-      stateMachine->start();
 
-      TRACEEXIT;
+      boost::to_upper(dbDriver);
+
+    //      /// @todo Include a check that the file is accessable and exit if not.
+
+
+
+    //    /// @todo Add a sense check that all the necessary data is available.
+    //    ///				IE, database data, commodity list, apikey etc.
+
+
+    		// Test that the database is accessable.
+
+    	{
+        CGnuCashDatabase testDatabase;
+        if (!testDatabase.createConnection(settings.value(MYSQL_DRIVERNAME).toString(),
+                                           settings.value(MYSQL_HOSTADDRESS).toString(),
+                                           settings.value(MYSQL_PORT).toUInt(),
+                                           settings.value(MYSQL_DATABASENAME).toString(),
+                                           settings.value(MYSQL_USERNAME).toString(),
+                                           settings.value(MYSQL_PASSWORD).toString()))
+        {
+          CRITICALMESSAGE("Unable to open connection to database. Exiting.");
+          GCL::logger::defaultLogger().shutDown();
+          QCoreApplication::exit(6);
+        }
+        else
+        {
+          testDatabase.closeConnection();
+        }
+      };
+
+      stateMachine.start();
+
     }
-
-    /// @brief Function to stop the daemon
-    /// @throws
-    /// @version 2018-06-28/GGB - Function created.
-
-    void CWSService::stop()
+    catch (GCL::CError &error)
     {
-      INFOMESSAGE("Stop Daemon");
+      boost::chrono::system_clock::time_point timeStamp = boost::chrono::system_clock::now();
+       std::clog << "[" << timeStamp << "] - ";
+      std::clog << "GCL unhandled exception: " << error.errorCode() << " - ";
+      std::clog << error.errorMessage() << std::endl;
 
-      stateMachine->stop();
+      timeStamp = boost::chrono::system_clock::now();
+      std::clog << "[" << timeStamp << "] - ";
+      std::clog << "Application Terminated: Return Value: " << error.errorCode() << std::endl;
+
+      QCoreApplication::exit(error.errorCode());
     }
-  }   // namespace service
+    catch(std::exception &e)
+    {
+      std::cerr << e.what() << std::endl;
+      QCoreApplication::exit(4);
+    }
+    catch(std::exception &E)
+    {
+      CRITICALMESSAGE(E.what());
+      QCoreApplication::exit(5);
+    }
+    catch(...)
+    {
+      boost::chrono::system_clock::time_point timeStamp = boost::chrono::system_clock::now();
+      std::clog << "[" << timeStamp << "] - ";
+      std::clog << "Unable to initialise logger. Terminating" << std::endl;
+      returnValue = -2;
+      timeStamp = boost::chrono::system_clock::now();
+      std::clog << "[" << timeStamp << "] - ";
+      std::clog << "Application Terminated: Return Value: " << returnValue << std::endl;
+      QCoreApplication::exit(3);
+    };
+  }
+
+  /// @brief Function to stop the daemon
+  /// @throws
+  /// @version 2018-06-28/GGB - Function created.
+
+  void CService::stop()
+  {
+    INFOMESSAGE("Stop Daemon");
+
+    stateMachine.stop();
+  }
+
 }   // namespace gnuCash_pud

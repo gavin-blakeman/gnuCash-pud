@@ -13,3 +13,6 @@
 [submodule "qt-solutions"]
 	path = qt-solutions
 	url = https://github.com/qtproject/qt-solutions.git
+[submodule "simple-mail"]
+	path = simple-mail
+	url = https://github.com/cutelyst/simple-mail.git

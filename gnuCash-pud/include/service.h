@@ -33,6 +33,10 @@
 #ifndef SERVICE_H
 #define SERVICE_H
 
+  // Standard C++ library header files
+
+#include <cstdint>
+
   // Miscellaneous include files
 
 #include "boost/filesystem.hpp"
@@ -42,28 +46,24 @@
 
 namespace gnuCash_pud
 {
-  namespace service
+  class CService : public QObject, public QtService<QCoreApplication>
   {
-    class CService : public QObject, public QtService<QCoreApplication>
-    {
-      Q_OBJECT
+    Q_OBJECT
 
-    private:
-      CStateMachine *stateMachine;
-      boost::filesystem::path commodityListName_;
+  private:
+    CStateMachine stateMachine;
 
-    protected:
-      void start();
-      void stop();
-      void pause() {}
-      void resume();
+  protected:
+    void start();
+    void stop();
+    void pause() {}
+    void resume();
 
-    public:
-      CService(int argc, char **argv, boost::filesystem::path const &commodityListName);
-      virtual ~CService();
-    };
+  public:
+    CService(int argc, char **argv);
+    virtual ~CService();
+  };
 
-  } // namespace service
 
 }   // namespace gnuCash_pud
 

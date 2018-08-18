@@ -30,8 +30,8 @@
 //
 //*********************************************************************************************************************************
 
-#ifndef DATABASE
-#define DATABASE
+#ifndef DATABASE_H
+#define DATABASE_H
 
   // Standard C++ library definitions.
 
@@ -69,11 +69,16 @@ private:
 protected:
 public:
   CGnuCashDatabase();
+  ~CGnuCashDatabase() {}
 
-  bool createConnection(QString const &, QString const &, std::uint16_t, QString const &, QString const &, QString const &);
+  void getCurrencyUUID(std::string const &, std::string &);
 
-  bool writeCurrencyValues(DCommodityValues const &, std::string const &commodityName, std::string const &currencyName);
+  void getCommodityUUID(std::string const &, std::string &);
+  void getCommodityLastDate(std::string const &, std::tm &);
+
+  bool writeCurrencyValues(DCommodityValues const &, std::string const &commodityName, std::string const &);
+
 };
 
-#endif // DATABASEGNUCASH
+#endif // DATABASE_H
 

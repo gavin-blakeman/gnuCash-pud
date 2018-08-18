@@ -45,9 +45,11 @@ INCLUDEPATH += \
   "../SCL"
 
 SOURCES += \
-    source/database.cpp
+    source/database.cpp \
+    source/processCSV.cpp
 
 HEADERS += \
     include/database.h \
-    include/qt.h
+    include/qt.h \
+    include/processCSV.h
 

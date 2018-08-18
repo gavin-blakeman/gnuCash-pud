@@ -32,6 +32,11 @@
 
 #include "../include/statemachine.h"
 
+  // gnuCash-pud header files
+
+#include "../include/settings.h"
+#include "include/processCSV.h"
+
   // Standard C++ libraries
 
 #include <chrono>
@@ -40,7 +45,7 @@
 
   // Miscellaneous libraries
 
-#include "include/database.h"
+#include <boost/algorithm/string.hpp>
 #include <GCL>
 
 namespace gnuCash_pud
@@ -50,17 +55,10 @@ namespace gnuCash_pud
   /// @param[in]
   /// @version 2018-06-28/GGB - Function created.
 
-  CStateMachine::CStateMachine(QObject *np) : parent(np), pollTimer(nullptr)
+  CStateMachine::CStateMachine(QObject *np) : parent(np),
+    alarmWeekly_(std::bind(&CStateMachine::alarmCallback, this, std::placeholders::_1, std::placeholders::_2), nullptr)
   {
-    //tcpSocket = new tcp::CTCPSocket(parent, siteID, instrumentID);
-
     std::this_thread::sleep_for(std::chrono::seconds(60));
-
-    pollTimer = new QTimer();
-    connect(pollTimer, SIGNAL(timeout()), this, SLOT(pollModeTimer()));
-    pollTimer->setInterval(std::chrono::milliseconds(std::chrono::minutes(60).count()).count());
-
-    //VWL::database.connectToDatabase();
   }
 
   /// @brief Destructor - Frees dynamically allocated objects
@@ -69,77 +67,88 @@ namespace gnuCash_pud
 
   CStateMachine::~CStateMachine()
   {
-    if (pollTimer)
-    {
-      delete pollTimer;
-      pollTimer = nullptr;
-    };
-
-    if (tcpSocket)
-    {
-      delete tcpSocket;
-      tcpSocket = nullptr;
-    };
   }
 
-  /// @brief Slot for the poll mode timer.
-  /// @throws None.
-  /// @version 2018-06-28/GGB - Function created.
+  /// @brief      The callback function to handle the state when the alarm is enabled. (IE, the desired day of week and time is met)
+  /// @details    The function handles the opening of the list of the commodity names, reading the values from the website and
+  ///             writing to the database.
+  /// @param[in]  alarmHandle: The handle of the alarm that tripped the callback. (Only using one alarm so not used)
+  /// @param[in]  callbackData: Data associated with the alarm. This will always be nullptr in this case.
+  /// @throws
+  /// @version    2018-08-11/GGB - Function created.
 
-  void CStateMachine::pollModeTimer()
+  void CStateMachine::alarmCallback(std::uint64_t /*alarmHandle */, void */*callbackData*/)
   {
-    static bool timeUpdated = false;
-    uint16_t dateValue, timeValue;
-    double t1, t2;
+    INFOMESSAGE("Beginning processing alarm...");
 
-      // Check if it is
+    gnuCashDatabase.createConnection(QString::fromStdString(configurationData_.databaseDriver),
+                                     QString::fromStdString(configurationData_.databaseIPAddress),
+                                     configurationData_.databasePort,
+                                     QString::fromStdString(configurationData_.databaseSchema),
+                                     QString::fromStdString(configurationData_.databaseUser),
+                                     QString::fromStdString(configurationData_.databasePassword));
 
-    TRACEENTER;
-    try
+    inputFileStream.open(inputFileName);
+
+      /// @todo Should be a check that the filestream was opened correctly.
+
+      // Iterate over the entire stream and process each commodity in turn.
+      // Format is one commodity per line.
+
+    while (!inputFileStream.eof())
     {
-      DEBUGMESSAGE("Connecting to database");
-      //database.openDatabase();
-      std::this_thread::sleep_for(std::chrono::seconds(5));
+      std::string szLine;
+      std::size_t indexStart = 0, indexEnd = 0;
+      std::string szCommodity;
+      std::string szCurrency;
+
+      std::getline(inputFileStream, szLine);
+
+      indexEnd = szLine.find_first_of(", \t", indexStart);
+      szCommodity = szLine.substr(indexStart, indexEnd - indexStart);
+      boost::trim(szCommodity);
+
+      indexStart = indexEnd + 1;
+      indexEnd = szLine.find_first_of(", \t", indexStart);
+      szCurrency = szLine.substr(indexStart, indexEnd - indexStart);
+      boost::trim(szCurrency);
+
+      processCommodity(szCommodity, szCurrency);
     }
-    catch(...)
-    {
-      GCL::logger::defaultLogger().logMessage(GCL::logger::error, "Unable to connect to database.");
-    };
+    inputFileStream.close();
 
+    gnuCashDatabase.closeConnection();
 
-    //GCL::logger::defaultLogger().logMessage(GCL::logger::debug, "Polling Weather System Device.");
+    INFOMESSAGE("Completed processing alarm.");
+  }
 
-    //tcpSocket->readArchive();
+  /// @brief Process a commodity.
+  /// @details  Read from the database to find the last date available for the commodity. Read from the Alpha Vantage website, the
+  ///           range of dates and data required. Write the data to the database.
+  /// @param[in] commodityName: The name of the commodity to get.
+  /// @throws
+  /// @version 2018-08-11/GGB - Function created.
 
-    std::time_t time = std::time(&time);
-    struct tm *currentTime = std::localtime(&time);
+  void CStateMachine::processCommodity(std::string const &commodityName, std::string const &currencyName)
+  {
+    QEventLoop localEventLoop;
+    DCommodityValues commodityValues;
 
-    if ( (currentTime->tm_hour == 0) && (currentTime->tm_min < 10) && (!timeUpdated))
-    {
-      timeUpdated = tcpSocket->setTime();
-    }
-    else if ( (currentTime->tm_hour == 23) && (timeUpdated) )
-    {
-      timeUpdated = false;
-    }
-    else
-    {
-      VWL::database.lastWeatherRecord(siteID, instrumentID, dateValue, timeValue);
-      dateValue = currentTime->tm_hour * 60 + currentTime->tm_min;                 // Time in minutes after start of day
-      timeValue = (timeValue / 100) * 60 + (timeValue % 100);                                  // Convert time to minutes.
+    INFOMESSAGE("Processing stock: " + commodityName + "...");
 
-      t1 = std::abs(720 - dateValue);
-      t2 = std::abs(720 - timeValue);
+      // Request data from the web service.
 
-      if (std::abs(t1 - t2) > 5)        // If time difference greater than 5 minutes.
-      {
-        timeUpdated = tcpSocket->setTime();
-      }
-    }
+    connect(&downloadManager, SIGNAL(fileDownloadFinished()), &localEventLoop, SLOT(localEventLoop::quit));
 
-    VWL::database.closeDatabase();
+    downloadManager.downloadData(commodityName);
+    localEventLoop.exec();
 
-    TRACEEXIT;
+    std::stringstream fileData(downloadManager.downLoadedData());
+
+    processCSV(fileData, commodityValues);
+    gnuCashDatabase.writeCurrencyValues(commodityValues, commodityName, currencyName);
+
+    INFOMESSAGE("Completed processing stock: " + commodityName + ".");
   }
 
   /// @brief Function to start the poll mode.
@@ -148,7 +157,7 @@ namespace gnuCash_pud
 
   void CStateMachine::start()
   {
-    pollTimer->start();
+
   }
 
   /// @brief Function to stop the poll mode.
@@ -157,7 +166,16 @@ namespace gnuCash_pud
 
   void CStateMachine::stop()
   {
-    pollTimer->stop();
+    //pollTimer->stop();
+  }
+
+  /// @brief Function called when a webQuery is complete.
+  /// @throws None.
+  /// @version 2018-08-12/GGB - Function created.
+
+  void CStateMachine::webQueryComplete()
+  {
+
   }
 
 } // namespace OCWS

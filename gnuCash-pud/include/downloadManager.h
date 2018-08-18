@@ -1,12 +1,12 @@
 ﻿//*********************************************************************************************************************************
 //
 // PROJECT:							gnuCash-pud (gnuCash-Price Upload Daemon)
-// FILE:								StateMachine
-// SUBSYSTEM:						StateMachine
+// FILE:								downloadManager
+// SUBSYSTEM:						Manages downloads from the Alpha Vantage API
 // LANGUAGE:						C++
 // TARGET OS:						UNIX/LINUX/WINDOWS/MAC
 // LIBRARY DEPENDANCE:	Qt
-// NAMESPACE:						gnuCash_pud:settings
+// NAMESPACE:						gnuCash_pud
 // AUTHOR:							Gavin Blakeman (GGB)
 // LICENSE:             GPLv2
 //
@@ -24,78 +24,47 @@
 //                      You should have received a copy of the GNU General Public License along with gnuCash-pud.  If not,
 //                      see <http://www.gnu.org/licenses/>.
 //
-// OVERVIEW:            Implements the service
+// OVERVIEW:            Implements the main(...) function
 //
 // HISTORY:             2018-06-28/GGB - Development of gnuCash-pud
 //
 //*********************************************************************************************************************************
 
-#ifndef STATEMACHINE_H
-#define STATEMACHINE_H
+#ifndef DOWNLOADMANAGER_H
+#define DOWNLOADMANAGER_H
 
-  // Standard C++ library files
+  // Standard C++ library headers
 
-#include <cstdint>
+#include <memory>
 
-  // Miscellaneous header files
+  // Miscellaneous includes.
 
-#include "boost/filesystem.hpp"
 #include "include/qt.h"
 
-  // gnuCash-pud header files.
 
-#include "include/database.h"
-#include "downloadManager.h"
-
-namespace gnuCash_pud
+class CDownloadManager : public QObject
 {
+  Q_OBJECT
 
-  struct SConfiguration
-  {
-    std::string databaseDriver;
-    std::string databaseIPAddress;
-    std::uint16_t databasePort;
-    std::string databaseSchema;
-    std::string databaseUser;
-    std::string databasePassword;
-    boost::filesystem::path shareNamesPath;
-    boost::filesystem::path shareNamesFile;
-    std::string apiKey;
-  };
+private:
+  QNetworkAccessManager manager;
+  QNetworkReply *networkReply;
+  QByteArray downloadedData_;
 
-  class CStateMachine : public QObject
-  {
-    Q_OBJECT
+protected:
 
-  private:
-    QObject *parent;
-    SConfiguration configurationData_;
-    CGnuCashDatabase gnuCashDatabase;
-    GCL::alarm::CAlarmWeekly alarmWeekly_;
-    CDownloadManager downloadManager;
-    boost::filesystem::path inputFileName;
-    boost::filesystem::ifstream inputFileStream;
+public:
+  CDownloadManager();
 
-    void alarmCallback(std::uint64_t, void *);
-    void processCommodity(std::string const &, std::string const &);
+  void downloadData(std::string const &);
+  std::string downLoadedData();
 
-  protected:
-  public:
-    CStateMachine(QObject *);
-    virtual ~CStateMachine();
+signals:
+  void fileDownloadFinished();
 
-    void start();
-    void stop();
-
-    SConfiguration &configurationData() { return configurationData_; }
-
-  public slots:
-    void webQueryComplete();
-
-  };
+public slots:
+  void downloadFinished(QNetworkReply *reply);
+};
 
 
-} // namespace OCWS
-
-
-#endif // STATEMACHINE_H
+#endif // DOWNLOADMANAGER_H

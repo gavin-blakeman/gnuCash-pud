@@ -63,21 +63,16 @@ INCLUDEPATH +=  \
 SOURCES += \
     source/service.cpp \
     source/statemachine.cpp \
-    ../../Library/QtSolutions/qtservice/src/qtunixsocket.cpp \
-    ../../Library/QtSolutions/qtservice/src/qtunixserversocket.cpp \
-    ../../Library/QtSolutions/qtservice/src/qtservice_unix.cpp \
-    ../../Library/QtSolutions/qtservice/src/qtservice.cpp \
-    source/tcp.cpp \
-    ../../Library/WeatherLink/Source/GeneralFunctions.cpp \
-    ../../Library/WeatherLink/Source/database.cpp \
-    ../../Library/WeatherLink/Source/error.cpp \
-    ../../Library/WeatherLink/Source/settings.cpp \
-    source/gnuCash-pud.cpp
+      ../QtSolutions/qtservice/src/qtservice.cpp \
+    source/gnuCash-pud.cpp \
+    ../QtSolutions/qtservice/src/qtservice_unix.cpp \
+    ../QtSolutions/qtservice/src/qtunixserversocket.cpp \
+    ../QtSolutions/qtservice/src/qtunixsocket.cpp \
+    source/downloadManager.cpp
 
 HEADERS += \
     include/service.h \
     include/statemachine.h \
-    include/tcp.h \
     ../../Library/QtSolutions/qtservice/src/qtunixsocket.h \
     ../../Library/QtSolutions/qtservice/src/qtunixserversocket.h \
     ../../Library/QtSolutions/qtservice/src/qtservice_p.h \
@@ -87,7 +82,13 @@ HEADERS += \
     ../../Library/WeatherLink/Include/database.h \
     ../../Library/WeatherLink/Include/error.h \
     ../../Library/WeatherLink/Include/settings.h \
-    include/settings.h
+    include/settings.h \
+    ../QtSolutions/qtservice/src/QtServiceController \
+    ../QtSolutions/qtservice/src/qtunixserversocket.h \
+    ../QtSolutions/qtservice/src/qtunixsocket.h \
+    include/downloadManager.h \
+    ../QtSolutions/qtservice/src/qtservice_p.h \
+    ../QtSolutions/qtservice/src/qtservice.h
 
 win32:CONFIG(release, debug|release) {
   LIBS += -L../../Library/Library/win32/debug -lGCL
@@ -116,6 +117,7 @@ else:unix:CONFIG(debug, debug|release) {
   LIBS += -L../MCL -lMCL
   LIBS += -L../QCL -lQCL
   LIBS += -L../SCL -lSCL
+  LIBS += -L../gnuCash-lib -lgnuCash-lib
   LIBS += -L../../../Library/Library -lboost_filesystem
   LIBS += -L../../../Library/Library/unix/debug -lboost_system
   LIBS += -L../../Library/Library/unix/debug -lboost_thread
@@ -127,6 +129,7 @@ else:unix:CONFIG(release, debug|release) {
   LIBS += -L../MCL -lMCL
   LIBS += -L../QCL -lQCL
   LIBS += -L../SCL -lSCL
+  LIBS += -L../gnuCash-lib -lgnuCash-lib
   LIBS += -L../../../Library/Library -lboost_filesystem
   LIBS += -L../../../Library/Library/unix/debug -lboost_system
   LIBS += -L../../Library/Library/unix/debug -lboost_thread
@@ -137,5 +140,6 @@ else:unix:CONFIG(release, debug|release) {
 
 
 DISTFILES += \
-    ../README
+    ../README \
+    ../gnuCash-pud.conf
 

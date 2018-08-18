@@ -1,23 +1,23 @@
 ﻿//*********************************************************************************************************************************
 //
-// PROJECT:							gnuCash-pud (gnuCash-Price Upload Daemon)
-// FILE:								tcp class
-// SUBSYSTEM:						main(...)
+// PROJECT:							gnuCash-lib (gnuCash-Library)
+// FILE:								processCSV
+// SUBSYSTEM:						Processing CSV files in various formats
 // LANGUAGE:						C++
 // TARGET OS:						UNIX/LINUX/WINDOWS/MAC
 // LIBRARY DEPENDANCE:	Qt
-// NAMESPACE:						gnuCash_pud
+// NAMESPACE:						WSd
 // AUTHOR:							Gavin Blakeman (GGB)
 // LICENSE:             GPLv2
 //
 //                      Copyright 2018 Gavin Blakeman.
-//                      This file is part of the gnuCash-pud (gnuCash-Price Upload Daemon)
+//                      This file is part of the gnuCash-lib (gnuCash-Library)
 //
-//                      gnuCash-pud is free software: you can redistribute it and/or modify it under the terms of the GNU General
+//                      gnuCash-lib is free software: you can redistribute it and/or modify it under the terms of the GNU General
 //                      Public License as published by the Free Software Foundation, either version 2 of the License, or (at your
 //                      option) any later version.
 //
-//                      gnuCash-pud is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the
+//                      gnuCash-lib is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the
 //                      implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 //                      for more details.
 //
@@ -26,43 +26,23 @@
 //
 // OVERVIEW:            Implements the main(...) function
 //
-// HISTORY:             2018-06-28/GGB - Development of gnuCash-pud
+// HISTORY:             2018-06-28/GGB - Development of gnuCash-lib
 //
 //*********************************************************************************************************************************
 
-#ifndef TCP_H
-#define TCP_H
+#ifndef PROCESSCSV_H
+#define PROCESSCSV_H
 
-  // Standard C++ library headers
+  // Standard C++ library
 
-#include <memory>
+#include <sstream>
+#include <string>
 
-  // Miscellaneous includes.
+  // gnuCash-lib header files.
 
-#include "include/qt.h"
+#include "database.h"
 
-namespace gnuCash_pud
-{
-  namespace tcp
-  {
-    class CTCPSocket : public QTcpSocket
-    {
-      Q_OBJECT
+void processCSV(std::stringstream &, DCommodityValues &);
 
-    private:
-      QString ipAddress;
-      qint16 port;
+#endif // PROCESSCSV_H
 
-    protected:
-
-    public:
-      CTCPSocket(QObject *parent, unsigned long sid, unsigned long iid);
-
-      bool readArchive();
-      bool setTime();
-    };
-
-  }   // namespace tcp
-}   // namespace gnuCash_pud
-
-#endif // TCP_H

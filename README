@@ -1,36 +1,49 @@
-﻿gnuCash-price-upload
+﻿gnuCash-pud (Price Upload Daemon)
 ================================================================
 Source code can be found on github.
 
-gnuCash-price-upload allows share (stock) prices to be uploaded from a .csv file to the gnuCash database. This is a Qt console
-application. The software will only work with database based storage of gnuCash information (not xml!)
+This is a Qt service application. The gnuCash-pud allows share (stock) prices to be uploaded from a web based price service
+(Alpha Vantage).
+The software will only work with database based storage of gnuCash information (not xml!)
 
 This has only been tested with mysql.
 
-The .csv file is expected to be in the format:
-date, open, high, low, close, adj close, volume
-
-date:       YYYY-MM-DD
-open:       double
-high:       double
-low:        double
-close:      double
-adj_close:  double
-volume:     std::uint64_t
+A file must be provided with the list of commodity values.
 
 
 Command Line Usage
 ------------------
+
+Configuration File
+------------------
+A configuration file located in /etc/gnuCash is used.
+The configuration file name is gnuCash-pud.conf
+Full path is then /etc/gnuCash/gnuCash-pud.conf
 
 
 Documentation
 -------------
 The code is documented for use with doxygen.
 
+Commodity Name File Format
+---------------------------
+There is one commodity code stored per line. The first item on the line must be the lookup code. This needs to correspond to the
+[Security/currency] value in the Account Master. The second value in the line is the currency to use.
+The items can be delimited with a space, tab or comma.
+
+[Commodity Code], any other data required
+WES.AX  AUD  Wesfarmers
+WES.AX, AUD, Wesfarmers
+
+Notes:
+------
+1.  Logging is to the local user directory. It is possible to set logging up to /var/log but this requires root setup before it will
+    work. Therefore default is to log to local directory.
+
 
 Licensing
 ---------
-gnucash-price-upload    GPLv2 Copyright 2018 Gavin Blakeman.
+gnucash-pud             GPLv2 Copyright 2018 Gavin Blakeman.
 Boost 1.62              Boost License
 GCL                     GPLV2 Copyright 2013-2018 Gavin Blakeman.
 MCL                     GPLv2 Copyright 2013-2018 Gavin Blakeman.

@@ -40,7 +40,9 @@ QString const FILENAME                                  ("/usr/local/gnuCash-pud
 QString const ORG_NAME                                  ("GPLv2");
 QString const APPL_NAME                                 ("gnuCash-pud");
 
-// Definitions for the Database section
+QString const QDRV_MYSQL                                ("QMYSQL");
+
+  // Definitions for the Database section
 
 QString const DATABASE                                  ("Database/Database");
 QString const MYSQL_DRIVERNAME                          ("Database/MySQL/DriverName");
@@ -49,6 +51,10 @@ QString const MYSQL_DATABASENAME                        ("Database/MySQL/Databas
 QString const MYSQL_PORT                                ("Database/MySQL/Port");
 QString const MYSQL_USERNAME                            ("Database/MySQL/UserName");
 QString const MYSQL_PASSWORD                            ("Database/MySQL/Password");
+
+QString const COMMODITYLIST_FILENAME                    ("CommodityList/FileName");
+
+QString const APIKEY                                    ("APIKey");
 
 QSettings extern settings;
 

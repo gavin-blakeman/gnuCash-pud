@@ -35,7 +35,9 @@
   // Standard C++ library header files.
 
 #include <cmath>
+#include <iomanip>
 #include <limits>
+#include <sstream>
 
   // Miscellaneous libraries
 
@@ -50,21 +52,115 @@ CGnuCashDatabase::CGnuCashDatabase() : CDatabase("GNUCASH"), sqlQuery()
 
 }
 
-bool CGnuCashDatabase::createConnection(QString const &driverName, QString const &hostName, std::uint16_t portNumber,
-                                 QString const &databaseName,
-                                 QString const &userName, QString const &password)
+/// @brief Gets the date of the last commodity value in the database.
+/// @param[in] commodityUUID: The UUID of the commodity.
+/// @throws
+/// @version 2018-11-08/GGB - Function created.
+
+void CGnuCashDatabase::getCommodityLastDate(std::string const &commodityUUID, std::tm &dateTime)
 {
-  bool returnValue;
+  std::string szDate;
 
-  returnValue = CDatabase::createConnection(driverName, hostName, portNumber, databaseName, userName, password);
-
-  if (returnValue)
+  sqlWriter.resetQuery();
+  sqlWriter.select({"date"}).from({"prices"}).
+      where({GCL::sqlwriter::parameterTriple("guid", "=", commodityUUID)}).
+      orderBy({std::make_pair("date", GCL::sqlwriter::CSQLWriter::DESC)});
+  if (sqlQuery->exec(QString::fromStdString(sqlWriter.string())))
   {
-    sqlQuery.reset(new QSqlQuery(*dBase));
+    sqlQuery->first();
+    if (sqlQuery->isValid())
+    {
+      szDate = sqlQuery->value(0).toString().toStdString();
+
+        // Convert string to a date value.
+
+      std::istringstream ss(szDate);
+      ss >> std::get_time(&dateTime, "%Y-%m-%d");
+      if (ss.fail())
+      {
+        ERRORMESSAGE("Unable to parse date: " + szDate);
+        throw std::runtime_error("Unable to parse date");
+      };
+    }
+    else
+    {
+      processErrorInformation();
+      ERRORMESSAGE("Cannot find commodity with GUID: " + commodityUUID);
+      throw std::runtime_error("Cannot find commodity");
+    };
+  }
+  else
+  {
+    processErrorInformation();
+    throw std::runtime_error("query error");
   };
+}
 
-  return returnValue;
+/// @brief Gets the commodity UUID from the database.
+/// @param[in] commodityName: The name (mnemonic) to find the UUID of.
+/// @param[out] commodityUUID: The UUID of the commodity.
+/// @throws std::runtime_error
+/// @version 2018-08-11/GGB - Function created.
 
+void CGnuCashDatabase::getCommodityUUID(std::string const &commodityName, std::string &commodityUUID)
+{
+  sqlWriter.resetQuery();
+  sqlWriter.select({"guid"}).from({"commodities"}).
+      where({GCL::sqlwriter::parameterTriple("mnemonic", "=", commodityName)});
+  if (sqlQuery->exec(QString::fromStdString(sqlWriter.string())))
+  {
+    sqlQuery->first();
+    if (sqlQuery->isValid())
+    {
+      commodityUUID = sqlQuery->value(0).toString().toStdString();
+    }
+    else
+    {
+      processErrorInformation();
+      ERRORMESSAGE("Cannot find Share: " + commodityName);
+      throw std::runtime_error("Cannot find share");
+    };
+  }
+  else
+  {
+    processErrorInformation();
+    throw std::runtime_error("query error");
+  };
+}
+
+/// @brief Gets the UUID of the currency
+/// @param[in] currencyName: The name (mnemonic) of the currency.
+/// @param[out] currencyUUID: The UUID of the currency.
+/// @throws std::runtime_error
+/// @version 2018-08-11/GGB - Function created.
+
+void CGnuCashDatabase::getCurrencyUUID(std::string const &currencyName, std::string &currencyUUID)
+{
+    // Now get the currency GUID
+
+  sqlWriter.resetQuery();
+  sqlWriter.select({"guid"}).from({"commodities"}).
+      where({GCL::sqlwriter::parameterTriple("mnemonic", "=", currencyName),
+             GCL::sqlwriter::parameterTriple("namespace", "=", "'CURRENCY'")});
+  if (sqlQuery->exec(QString::fromStdString(sqlWriter.string())))
+  {
+    sqlQuery->first();
+    if (sqlQuery->isValid())
+    {
+      currencyUUID = sqlQuery->value(0).toString().toStdString();
+    }
+    else
+    {
+      processErrorInformation();
+      ERRORMESSAGE("Cannot find Curreny: " + currencyName);
+      throw std::runtime_error("Cannot find currency");
+    };
+  }
+  else
+  {
+    processErrorInformation();
+    throw std::runtime_error("query error");
+  };
 }
 
 /// @brief Processes and displays the error information.
@@ -112,6 +208,7 @@ bool CGnuCashDatabase::writeCurrencyValues(DCommodityValues const &commodityValu
   sqlWriter.resetQuery();
   sqlWriter.select({"guid", "fraction"}).from({"commodities"}).
       where({GCL::sqlwriter::parameterTriple("mnemonic", "=", commodityName)});
+
   if (sqlQuery->exec(QString::fromStdString(sqlWriter.string())))
   {
     sqlQuery->first();
@@ -124,13 +221,13 @@ bool CGnuCashDatabase::writeCurrencyValues(DCommodityValues const &commodityValu
     {
       processErrorInformation();
       ERRORMESSAGE("Cannot find Share: " + commodityName);
-      throw std::runtime_error("Cannot find share");
+      throw std::runtime_error("Cannot find share.");
     };
   }
   else
   {
     processErrorInformation();
-    throw std::runtime_error("query error");
+    throw std::runtime_error("query error.");
   };
 
     // Now get the currency GUID
@@ -237,7 +334,6 @@ bool CGnuCashDatabase::writeCurrencyValues(DCommodityValues const &commodityValu
         };
 
         recordCount++;
-
       }
     }
     else
